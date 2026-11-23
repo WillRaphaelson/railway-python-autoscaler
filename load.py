@@ -5,6 +5,7 @@ import collections
 import json
 import threading
 import time
+import urllib.error
 import urllib.request
 
 
@@ -18,10 +19,16 @@ def main():
         parser.error('Use 1–300 seconds and 1–24 workers')
     end, lock = time.monotonic() + args.seconds, threading.Lock()
     counts, durations, errors = collections.Counter(), [], 0
+    error_types, attempts = collections.Counter(), 0
 
     def work():
-        nonlocal errors
+        nonlocal errors, attempts
+        consecutive_errors = 0
         while time.monotonic() < end:
+            with lock:
+                if attempts >= 10000:
+                    return
+                attempts += 1
             start = time.monotonic()
             try:
                 with urllib.request.urlopen(args.url, timeout=15) as response:
@@ -31,9 +38,15 @@ def main():
                 with lock:
                     counts[payload['replica_id']] += 1
                     durations.append((time.monotonic() - start) * 1000)
-            except (OSError, ValueError):
+                consecutive_errors = 0
+            except (OSError, ValueError) as error:
                 with lock:
                     errors += 1
+                    kind = 'HTTP_' + str(error.code) if isinstance(error, urllib.error.HTTPError) else type(getattr(error, 'reason', error)).__name__
+                    error_types[kind] += 1
+                consecutive_errors += 1
+                if consecutive_errors >= 5:
+                    return
                 time.sleep(.2)
 
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
@@ -41,6 +54,7 @@ def main():
     durations.sort()
     print(json.dumps({'requests_ok': len(durations), 'errors': errors,
         'seconds': args.seconds, 'concurrency': args.concurrency,
+        'attempts': attempts, 'errors_by_type': dict(error_types),
         'replicas_serving': dict(counts),
         'p95_ms': durations[max(0, int(len(durations) * .95) - 1)] if durations else None}, indent=2))
     if errors:

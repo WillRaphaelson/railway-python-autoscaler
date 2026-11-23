@@ -35,7 +35,7 @@ Run only against a service you own:
 python3 load.py 'https://YOUR-API.up.railway.app/work?ms=1000' --seconds 120 --concurrency 12
 ```
 
-The runner accepts at most 300 seconds and 24 concurrent workers. It reports successful requests, errors, p95 duration, and replica identities that actually served requests. The workload waits for the requested interval and holds a small allocation during each active request, so you can inspect CPU and RAM separately from replica count.
+The runner accepts at most 300 seconds, 24 concurrent workers, and 10,000 attempts. A worker stops after five consecutive failures. It reports successful requests, error types, p95 duration, and replica identities that actually served requests. The workload waits for the requested interval and holds a small allocation during each active request, so you can inspect CPU and RAM separately from replica count.
 
 Watch the public demonstration page or controller logs. Under sustained demand, configured capacity should rise within the allowed bounds. After traffic stops, the longer low-demand window allows gradual scale-down. Confirm that requests were served by additional replica identities, not just that a settings mutation returned success.
 
