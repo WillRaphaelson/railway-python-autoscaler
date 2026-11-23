@@ -1,6 +1,6 @@
 import { defineRailway, github, project, service, preserve } from 'railway/iac';
 
-export default defineRailway((ctx) => {
+export default defineRailway(() => {
   const api = service('api', {
     source: github('WillRaphaelson/railway-python-autoscaler', { branch: 'main' }),
     build: { builder: 'DOCKERFILE', dockerfilePath: 'Dockerfile' },
@@ -10,7 +10,7 @@ export default defineRailway((ctx) => {
       limitOverride: { containers: { cpu: 1, memoryBytes: 268435456 } },
     },
     env: {
-      METRICS_TOKEN: ctx.randomString('metrics-token', 32),
+      METRICS_TOKEN: preserve(),
       AUTOSCALER_STATUS_URL: 'http://${{autoscaler.RAILWAY_PRIVATE_DOMAIN}}:8080/state',
       PORT: '8080',
     },

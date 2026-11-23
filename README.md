@@ -15,6 +15,8 @@ The initial configuration uses one API replica and one controller. The controlle
 
 Use an appropriate Railway account/plan. The [.railway/railway.ts](.railway/railway.ts) file declares the two services, Docker build, start commands, health checks, private status link, and resource ceilings using Railway IaC. The marketplace template provides the initial public API domain and generated shared measurement secret.
 
+If applying IaC directly, generate a cryptographically random measurement secret, set it as `METRICS_TOKEN` on `api`, and add the API's public domain before deploying the controller. The IaC file preserves secrets configured in Railway; it does not put a reusable password in source code. The published template handles measurement-secret generation for each deployment.
+
 After deployment:
 
 1. Open the API's public URL and check `/health`.
