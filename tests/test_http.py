@@ -66,10 +66,27 @@ class HTTPTests(unittest.TestCase):
 
     def test_api_errors_are_not_treated_as_success(self):
         client=autoscaler.Railway('secret','env','app','controller')
-        with patch.object(autoscaler,'json_request',return_value={'errors':[{'message':'denied'}]}):
-            with self.assertRaises(RuntimeError): client.scale(2)
-        with patch.object(autoscaler,'json_request',return_value={'data':{'serviceInstanceUpdate':True}}) as call:
-            client.scale(2)
-            sent=call.call_args.kwargs['payload']['variables']
-            self.assertEqual(sent['input'],{'numReplicas':2})
-            self.assertEqual(call.call_args.kwargs['headers']['Project-Access-Token'],'secret')
+        client.region='iad'
+        with patch.object(client,'counts',return_value=(1,1)):
+            with patch.object(autoscaler,'json_request',return_value={'errors':[{'message':'denied'}]}):
+                with self.assertRaises(RuntimeError): client.scale(2)
+            with patch.object(autoscaler,'json_request',return_value={'data':{'environmentPatchCommit':'deployment-id'}}) as call:
+                client.scale(2)
+                sent=call.call_args.kwargs['payload']['variables']
+                self.assertEqual(sent['patch'],{'services':{'app':{'deploy':{'multiRegionConfig':{'iad':{'numReplicas':2}}}}}})
+                self.assertEqual(call.call_args.kwargs['headers']['Project-Access-Token'],'secret')
+
+    def test_regional_counts_override_legacy_field_and_reject_multiple_regions(self):
+        client=autoscaler.Railway('secret','env','app','controller')
+        config={'services':{'app':{'deploy':{'numReplicas':9,'multiRegionConfig':{'iad':{'numReplicas':1}}}},
+                            'controller':{'deploy':{'multiRegionConfig':{'iad':{'numReplicas':1}}}}}}
+        with patch.object(client,'query',return_value={'environment':{'config':config}}):
+            self.assertEqual(client.counts(),(1,1))
+            config['services']['app']['deploy']['multiRegionConfig']['other']={'numReplicas':1}
+            with self.assertRaises(RuntimeError):client.counts()
+
+    def test_changed_capacity_prevents_write(self):
+        client=autoscaler.Railway('secret','env','app','controller')
+        with patch.object(client,'counts',return_value=(2,1)), patch.object(client,'query') as query:
+            with self.assertRaises(RuntimeError):client.scale(2)
+            query.assert_not_called()

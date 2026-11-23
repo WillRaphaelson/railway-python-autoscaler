@@ -2,7 +2,7 @@
 
 A stateless Python HTTP application and a separate Python controller for exploring vertical resource use and horizontal replica scaling on Railway. Both use Python's standard library and the same Docker image.
 
-The application exposes a bounded I/O-style workload. The controller samples in-flight requests, estimates load per replica, and changes replica count through Railway's Public API. The public demonstration page shows actual observations and scaling decisions without exposing credentials.
+The application exposes a bounded I/O-style workload. The controller samples in-flight requests, estimates load per replica, and changes regional replica count through Railway's Public API, using the environment-patch flow used by the current CLI. The public demonstration page shows actual observations and scaling decisions without exposing credentials.
 
 ## What runs
 
@@ -52,6 +52,8 @@ Watch the public demonstration page or controller logs. Under sustained demand, 
 | `COOLDOWN_SECONDS` | `30` | Wait after a change, reconciliation, or controller restart |
 
 Changes move one replica at a time. The controller waits for observations to match the requested count before making another decision. Missing/stale/invalid measurements and API errors hold capacity and reset the demand window; failed requests are not interpreted as zero load. API/measurement errors use bounded backoff. Each evaluation records its reason.
+
+The controller reads the configured target region from the environment configuration and commits only that service’s regional replica count. It refuses multi-region targets. It does not rely on the legacy service-instance `numReplicas` field. See [the CLI scaling documentation](https://docs.railway.com/cli/scale) and [its implementation](https://github.com/railwayapp/cli/blob/v5.71.0/src/commands/scale.rs).
 
 ## Measurement and operating boundaries
 

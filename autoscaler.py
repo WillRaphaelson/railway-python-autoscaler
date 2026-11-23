@@ -53,18 +53,40 @@ class Railway:
         return result['data']
 
     def counts(self):
-        data = self.query('''query ($target: String!, $controller: String!, $environment: String!) {
-          target: serviceInstance(serviceId: $target, environmentId: $environment) { numReplicas region }
-          controller: serviceInstance(serviceId: $controller, environmentId: $environment) { numReplicas }
-        }''', {'target': self.target, 'controller': self.controller, 'environment': self.environment})
-        return int(data['target']['numReplicas']), int(data['controller']['numReplicas'])
+        data = self.query('''query ($environment: String!) {
+          environment(id: $environment) { config }
+        }''', {'environment': self.environment})
+        config = data['environment']['config']
+        if isinstance(config, str):
+            config = json.loads(config)
+        services = config['services']
+        # Use the regional configuration, as the current Railway CLI does.
+        # The legacy top-level numReplicas field can disagree with running capacity.
+        regions = services[self.target]['deploy']['multiRegionConfig']
+        active = {region: value for region, value in regions.items() if value is not None}
+        if len(active) != 1:
+            raise RuntimeError('This example requires exactly one target region')
+        self.region, value = next(iter(active.items()))
+        current = value['numReplicas']
+        own_regions = services[self.controller]['deploy']['multiRegionConfig']
+        own = sum(value['numReplicas'] for value in own_regions.values() if value is not None)
+        if isinstance(current, bool) or not isinstance(current, int) or current < 1:
+            raise RuntimeError('Invalid configured replica count')
+        return current, own
 
     def scale(self, count):
-        data = self.query('''mutation ($service: String!, $environment: String!, $input: ServiceInstanceUpdateInput!) {
-          serviceInstanceUpdate(serviceId: $service, environmentId: $environment, input: $input)
-        }''', {'service': self.target, 'environment': self.environment, 'input': {'numReplicas': count}})
-        if data.get('serviceInstanceUpdate') is not True:
-            raise RuntimeError('Replica update was not accepted')
+        current, own = self.counts()
+        if own != 1 or abs(count - current) != 1:
+            raise RuntimeError('Hold: capacity changed before the write')
+        patch = {'services': {self.target: {'deploy': {
+            'multiRegionConfig': {self.region: {'numReplicas': count}},
+        }}}}
+        data = self.query('''mutation ($environment: String!, $patch: EnvironmentConfig) {
+          environmentPatchCommit(environmentId: $environment, patch: $patch,
+            commitMessage: "Python autoscaler replica adjustment")
+        }''', {'environment': self.environment, 'patch': patch})
+        if not data.get('environmentPatchCommit'):
+            raise RuntimeError('Replica patch was not committed')
 
 
 def sample_load(url, token, count=8, spacing=0.12):
