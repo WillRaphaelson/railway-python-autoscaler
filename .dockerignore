@@ -1,0 +1,9 @@
+.git
+.railway
+.venv
+node_modules
+__pycache__
+tests
+verification
+.private
+.env*
