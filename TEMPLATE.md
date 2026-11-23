@@ -20,7 +20,7 @@ Use Railway's automatic vertical resource scaling together with an application-s
 
 ## Dependencies for a Python Autoscaler
 
-Railway builds the repository's Dockerfile with Python 3.13. The application and controller use the standard library. The default policy is one to three API replicas and one controller, with explicit resource ceilings. Both services and additional replicas incur usage costs.
+Railway builds the repository's Dockerfile with Python 3.13. The application and controller use the standard library. The default policy is one to three API replicas and one controller, with a bounded replica policy. Set appropriate per-replica CPU and memory ceilings after deployment; the repository includes an example in its IaC file. Both services and additional replicas incur usage costs.
 
 ### Deployment Dependencies
 

@@ -6,7 +6,7 @@ export default defineRailway(() => {
     build: { builder: 'DOCKERFILE', dockerfilePath: 'Dockerfile' },
     start: 'python api.py', healthcheck: '/health', replicas: 1,
     deploy: {
-      region: 'us-east4-eqdc4a', sleepApplication: false, drainingSeconds: 10,
+      region: 'us-east4-eqdc4a', sleepApplication: false, overlapSeconds: 10, drainingSeconds: 20,
       limitOverride: { containers: { cpu: 1, memoryBytes: 268435456 } },
     },
     env: {

@@ -85,10 +85,19 @@ class Handler(BaseHTTPRequestHandler):
                 INFLIGHT -= 1
 
 
+class DemoServer(ThreadingHTTPServer):
+    request_queue_size = 128
+
+
 def main():
-    server = ThreadingHTTPServer(('0.0.0.0', int(os.environ.get('PORT', '8080'))), Handler)
+    server = DemoServer(('0.0.0.0', int(os.environ.get('PORT', '8080'))), Handler)
     server.daemon_threads = False
-    signal.signal(signal.SIGTERM, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
+    def drain():
+        # Keep accepting briefly while routing changes propagate, then finish
+        # accepted work. Railway's drain allowance must cover both intervals.
+        time.sleep(5)
+        server.shutdown()
+    signal.signal(signal.SIGTERM, lambda *_: threading.Thread(target=drain, daemon=True).start())
     print(json.dumps({'event': 'api_started', 'replica_id': REPLICA}), flush=True)
     server.serve_forever()
     server.server_close()

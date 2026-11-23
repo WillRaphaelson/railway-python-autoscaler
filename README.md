@@ -57,7 +57,9 @@ The controller reads the configured target region from the environment configura
 
 ## Measurement and operating boundaries
 
-This version starts with a single-region stateless service. It samples an authenticated endpoint behind Railway's public routing. A sample describes one responding replica; multiple samples and a recent identity window estimate per-replica load and check the observed count. A shared queue or independently aggregated metric may suit other workloads better.
+This version starts with a single-region stateless service. It samples an authenticated endpoint behind Railway's public routing. A sample describes one responding replica; multiple samples and a recent identity window estimate per-replica load and check the observed count. Recently seen identities can temporarily include old and new replicas during a change; the view labels that window explicitly. A shared queue or independently aggregated metric may suit other workloads better.
+
+The API keeps its listener available for five seconds after SIGTERM and then finishes accepted work. The example configures a 10-second deployment overlap and a 20-second draining allowance. Check health, latency, and failed requests during your own transitions; scaling decisions alone do not establish request reliability.
 
 The history and decisions shown by the controller are in memory and reset on a controller deployment. A restart begins a fresh cooldown. Keep one active controller, leave Serverless off for this continuously polled workload, and avoid competing manual/IaC replica changes while automation is active. Replica bounds and resource ceilings are capacity controls, not an invoice guarantee. Use Railway usage alerts and the spending controls appropriate to your availability requirements.
 
