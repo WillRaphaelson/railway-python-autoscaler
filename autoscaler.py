@@ -33,7 +33,8 @@ def event(kind, **values):
 
 def json_request(url, *, headers=None, payload=None, timeout=10):
     raw = json.dumps(payload).encode() if payload is not None else None
-    req = urllib.request.Request(url, data=raw, headers=headers or {})
+    request_headers = {'User-Agent': 'railway-python-autoscaler/1.0', 'Accept': 'application/json', **(headers or {})}
+    req = urllib.request.Request(url, data=raw, headers=request_headers)
     with urllib.request.urlopen(req, timeout=timeout) as response:
         return json.load(response)
 
@@ -188,7 +189,8 @@ def main():
             except (OSError, ValueError, KeyError, TypeError, RuntimeError) as error:
                 decisions.reset()
                 failures += 1
-                reason = 'Hold: observation or API unavailable (' + type(error).__name__ + ')'
+                detail = 'HTTP ' + str(error.code) if isinstance(error, urllib.error.HTTPError) else type(error).__name__
+                reason = 'Hold: observation or API unavailable (' + detail + ')'
                 with LOCK:
                     STATE['status'] = reason
                 event('hold_on_error', reason=reason)
